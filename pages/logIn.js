@@ -69,22 +69,6 @@ export default function Login() {
                 <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
                     <Text style={styles.loginButtonText}>Entrar</Text>
                 </TouchableOpacity>
-
-                <View style={styles.divider}>
-                    <View style={styles.line}></View>
-                    <Text style={styles.dividerText}>OU</Text>
-                    <View style={styles.line}></View>
-                </View>
-
-                <TouchableOpacity style={styles.signupButton}>
-                    <Text style={styles.signupButtonText}>Criar Nova Conta</Text>
-                </TouchableOpacity>
-
-                <View style={styles.footer}>
-                    <Text style={styles.footerText}>
-                        Não tem uma conta? Entre em contato com a secretaria
-                    </Text>
-                </View>
             </View>
         </View>
     )
