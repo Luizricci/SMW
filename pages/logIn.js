@@ -1,21 +1,51 @@
 import { View, Text, TouchableOpacity, TextInput, StyleSheet, StatusBar, Alert } from "react-native";
 import { useNavigation } from '@react-navigation/native';
 import { useState } from 'react';
+import { useAuth } from '../context/AuthContext';
+import { useLoginValidation } from '../hooks/useInputValidation';
 
 export default function Login() {
     const navigation = useNavigation();
-    const [username, setUsername] = useState('');
-    const [password, setPassword] = useState('');
+    const { login } = useAuth();
+    const [loading, setLoading] = useState(false);
+    
+    // Hook de validação segura para login
+    const {
+        loginData,
+        loginErrors,
+        validateLogin,
+        updateLoginField
+    } = useLoginValidation();
 
-    const handleLogin = () => {
-        if (!username || !password) {
-            Alert.alert('Erro', 'Por favor, preencha todos os campos.');
+    const handleLogin = async () => {
+        // Validação com proteção contra SQL injection
+        const validation = validateLogin(loginData.username, loginData.password);
+        
+        if (!validation.isValid) {
+            // Mostra o primeiro erro encontrado
+            const firstError = Object.values(validation.errors)[0];
+            Alert.alert('Erro de Validação', firstError);
             return;
         }
-        if (username.trim() && password.trim()) {
-            navigation.navigate('Home');
-        } else {
-            Alert.alert('Erro', 'Credenciais inválidas. Tente novamente.');
+
+        setLoading(true);
+        
+        try {
+            // Usa os dados sanitizados para o login
+            const result = await login(
+                validation.sanitized.username.toLowerCase(), 
+                validation.sanitized.password
+            );
+            
+            if (result.success) {
+                navigation.navigate('Home');
+            } else {
+                Alert.alert('Erro de Login', result.error);
+            }
+        } catch (error) {
+            Alert.alert('Erro', 'Erro inesperado. Tente novamente.');
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -41,13 +71,19 @@ export default function Login() {
                     <Text style={styles.inputLabel}>Usuário ou Email</Text>
                     <TextInput 
                         placeholder="Digite seu usuário ou email" 
-                        style={styles.input}
+                        style={[
+                            styles.input,
+                            loginErrors.username && styles.inputError
+                        ]}
                         placeholderTextColor="#9ca3af"
                         autoCapitalize="none"
                         keyboardType="email-address"
-                        value={username}
-                        onChangeText={setUsername}
+                        value={loginData.username}
+                        onChangeText={(text) => updateLoginField('username', text)}
                     />
+                    {loginErrors.username && (
+                        <Text style={styles.errorText}>{loginErrors.username}</Text>
+                    )}
                 </View>
 
                 <View style={styles.inputContainer}>
@@ -55,20 +91,40 @@ export default function Login() {
                     <TextInput 
                         placeholder="Digite sua senha" 
                         secureTextEntry={true} 
-                        style={styles.input}
+                        style={[
+                            styles.input,
+                            loginErrors.password && styles.inputError
+                        ]}
                         placeholderTextColor="#9ca3af"
-                        value={password}
-                        onChangeText={setPassword}
+                        value={loginData.password}
+                        onChangeText={(text) => updateLoginField('password', text)}
                     />
+                    {loginErrors.password && (
+                        <Text style={styles.errorText}>{loginErrors.password}</Text>
+                    )}
                 </View>
 
                 <TouchableOpacity style={styles.forgotPassword}>
                     <Text style={styles.forgotPasswordText}>Esqueceu sua senha?</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
-                    <Text style={styles.loginButtonText}>Entrar</Text>
+                <TouchableOpacity 
+                    style={[styles.loginButton, loading && styles.loginButtonDisabled]} 
+                    onPress={handleLogin}
+                    disabled={loading}
+                >
+                    <Text style={styles.loginButtonText}>
+                        {loading ? 'Entrando...' : 'Entrar'}
+                    </Text>
                 </TouchableOpacity>
+
+                {/* Dicas de login para teste */}
+                <View style={styles.testCredentials}>
+                    <Text style={styles.testTitle}>Credenciais para teste:</Text>
+                    <Text style={styles.testText}>Aluno: joao.silva / 123456</Text>
+                    <Text style={styles.testText}>Pais: carlos.silva / 123456</Text>
+                    <Text style={styles.testText}>Diretor: diretor.sp / 123456</Text>
+                </View>
             </View>
         </View>
     )
@@ -221,5 +277,40 @@ const styles = StyleSheet.create({
         color: '#9ca3af',
         textAlign: 'center',
         lineHeight: 18,
+    },
+    loginButtonDisabled: {
+        backgroundColor: '#9ca3af',
+        elevation: 2,
+    },
+    testCredentials: {
+        backgroundColor: '#f3f4f6',
+        borderRadius: 8,
+        padding: 16,
+        marginTop: 20,
+        borderLeftWidth: 4,
+        borderLeftColor: '#3b82f6',
+    },
+    testTitle: {
+        fontSize: 14,
+        fontWeight: 'bold',
+        color: '#1e3a5f',
+        marginBottom: 8,
+    },
+    testText: {
+        fontSize: 12,
+        color: '#64748b',
+        marginBottom: 4,
+        fontFamily: 'monospace',
+    },
+    inputError: {
+        borderColor: '#ef4444',
+        borderWidth: 2,
+    },
+    errorText: {
+        fontSize: 12,
+        color: '#ef4444',
+        marginTop: 4,
+        marginLeft: 4,
+        fontWeight: '500',
     },
 });

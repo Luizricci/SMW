@@ -1,7 +1,59 @@
-import { View, StatusBar, StyleSheet, Text, ScrollView, TouchableOpacity } from 'react-native'
-import Card from '../components/Card'
+import { View, StatusBar, StyleSheet, Text, TouchableOpacity, ActivityIndicator } from 'react-native'
+import { useAuth } from '../context/AuthContext';
+import { useNavigation } from '@react-navigation/native';
+import StudentDashboard from '../components/dashboards/StudentDashboard';
+import ParentDashboard from '../components/dashboards/ParentDashboard';
+import DirectorDashboard from '../components/dashboards/DirectorDashboard';
 
-export default function Home() {    
+export default function Home() {
+    const { user, school, logout, loading } = useAuth();
+    const navigation = useNavigation();
+
+    const handleLogout = async () => {
+        await logout();
+        navigation.reset({
+            index: 0,
+            routes: [{ name: 'Login' }],
+        });
+    };
+
+    if (loading) {
+        return (
+            <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#1e3a5f" />
+                <Text style={styles.loadingText}>Carregando...</Text>
+            </View>
+        );
+    }
+
+    if (!user) {
+        return (
+            <View style={styles.errorContainer}>
+                <Text style={styles.errorText}>Erro ao carregar dados do usuário</Text>
+                <TouchableOpacity style={styles.retryButton} onPress={() => navigation.navigate('Login')}>
+                    <Text style={styles.retryButtonText}>Voltar ao Login</Text>
+                </TouchableOpacity>
+            </View>
+        );
+    }
+
+    const renderDashboard = () => {
+        switch (user.type) {
+            case 'student':
+                return <StudentDashboard />;
+            case 'parent':
+                return <ParentDashboard />;
+            case 'director':
+                return <DirectorDashboard />;
+            default:
+                return (
+                    <View style={styles.errorContainer}>
+                        <Text style={styles.errorText}>Tipo de usuário não reconhecido</Text>
+                    </View>
+                );
+        }
+    };
+
     return (
         <View style={styles.container}>
             <StatusBar barStyle="light-content" backgroundColor="#1e3a5f" />
@@ -10,60 +62,24 @@ export default function Home() {
             <View style={styles.header}>
                 <View style={styles.headerContent}>
                     <View style={styles.logoSection}>
-                        <Text style={styles.logoIcon}>🎓</Text>
+                        <Text style={styles.logoIcon}>{school?.logo || '🎓'}</Text>
                         <View style={styles.headerTexts}>
-                            <Text style={styles.welcomeText}>Bem-vindo!</Text>
-                            <Text style={styles.schoolName}>Sistema Escolar</Text>
+                            <Text style={styles.welcomeText}>
+                                {user.type === 'student' && 'Aluno'}
+                                {user.type === 'parent' && 'Pais'}
+                                {user.type === 'director' && 'Direção'}
+                            </Text>
+                            <Text style={styles.schoolName}>{school?.name || 'Sistema Escolar'}</Text>
                         </View>
                     </View>
-                    <TouchableOpacity style={styles.profileButton}>
-                        <Text style={styles.profileIcon}>👤</Text>
+                    <TouchableOpacity style={styles.profileButton} onPress={handleLogout}>
+                        <Text style={styles.profileIcon}>🚪</Text>
                     </TouchableOpacity>
                 </View>
             </View>
 
-            {/* Content */}
-            <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-                <View style={styles.quickActionsContainer}>
-                    <Text style={styles.sectionTitle}>Acesso Rápido</Text>
-                    <View style={styles.quickActions}>
-                        <TouchableOpacity style={styles.quickActionCard}>
-                            <Text style={styles.quickActionIcon}>📚</Text>
-                            <Text style={styles.quickActionText}>Notas</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.quickActionCard}>
-                            <Text style={styles.quickActionIcon}>📅</Text>
-                            <Text style={styles.quickActionText}>Horários</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.quickActionCard}>
-                            <Text style={styles.quickActionIcon}>📋</Text>
-                            <Text style={styles.quickActionText}>Tarefas</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.quickActionCard}>
-                            <Text style={styles.quickActionIcon}>💬</Text>
-                            <Text style={styles.quickActionText}>Mensagens</Text>
-                        </TouchableOpacity>
-                    </View>
-                </View>
-
-                <View style={styles.cardsContainer}>
-                    <Text style={styles.sectionTitle}>Informações</Text>
-                    <Card 
-                        title="Bem-vindo ao Sistema Escolar" 
-                        content="Aqui você pode acessar suas informações acadêmicas, notas e muito mais." 
-                    />
-                    <Card 
-                        title="Próximos Eventos" 
-                        content="• Prova de Matemática - 20/09/2025
-• Reunião de Pais - 25/09/2025
-• Festival de Ciências - 30/09/2025" 
-                    />
-                    <Card 
-                        title="Notificações" 
-                        content="Você tem 2 novas mensagens dos professores e 1 comunicado da direção." 
-                    />
-                </View>
-            </ScrollView>
+            {/* Dynamic Dashboard Content */}
+            {renderDashboard()}
         </View>
     )
 }
@@ -124,51 +140,40 @@ const styles = StyleSheet.create({
         fontSize: 20,
         color: '#ffffff',
     },
-    content: {
+    loadingContainer: {
         flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: '#f8fafc',
+    },
+    loadingText: {
+        marginTop: 16,
+        fontSize: 16,
+        color: '#64748b',
+    },
+    errorContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: '#f8fafc',
         paddingHorizontal: 20,
     },
-    quickActionsContainer: {
-        marginTop: 25,
-        marginBottom: 30,
-    },
-    sectionTitle: {
-        fontSize: 22,
-        fontWeight: 'bold',
-        color: '#1e3a5f',
-        marginBottom: 16,
-    },
-    quickActions: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        flexWrap: 'wrap',
-    },
-    quickActionCard: {
-        backgroundColor: '#ffffff',
-        width: '22%',
-        aspectRatio: 1,
-        borderRadius: 16,
-        alignItems: 'center',
-        justifyContent: 'center',
-        elevation: 3,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        marginBottom: 10,
-    },
-    quickActionIcon: {
-        fontSize: 24,
-        marginBottom: 8,
-    },
-    quickActionText: {
-        fontSize: 12,
-        fontWeight: '600',
-        color: '#1e3a5f',
+    errorText: {
+        fontSize: 16,
+        color: '#ef4444',
         textAlign: 'center',
+        marginBottom: 20,
     },
-    cardsContainer: {
-        paddingBottom: 30,
+    retryButton: {
+        backgroundColor: '#1e3a5f',
+        paddingHorizontal: 20,
+        paddingVertical: 12,
+        borderRadius: 8,
+    },
+    retryButtonText: {
+        color: 'white',
+        fontSize: 14,
+        fontWeight: '600',
     },
 });
 
